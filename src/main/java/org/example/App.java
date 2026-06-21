@@ -3,6 +3,8 @@ package org.example;
 import org.example.dao.UserDao;
 import org.example.dao.UserDaoImpl;
 import org.example.model.User;
+import org.example.service.UserService;
+import org.example.service.UserServiceImpl;
 import org.example.util.HibernateUtil;
 
 import java.util.List;
@@ -12,6 +14,8 @@ import java.util.Scanner;
 public class App {
 
     private static final UserDao userDao = new UserDaoImpl();
+    private static final UserService userService =
+            new UserServiceImpl(userDao);
     private static final Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args) {
@@ -48,107 +52,78 @@ public class App {
         System.out.println("0. Выход");
     }
 
-
     private static void createUser() {
         System.out.println("\n--- Создание пользователя ---");
-
         System.out.print("Имя: ");
         String name = scanner.nextLine().trim();
-
         System.out.print("Email: ");
         String email = scanner.nextLine().trim();
-
         int age = getIntInput("Возраст: ");
 
-        if (name.isEmpty() || email.isEmpty()) {
-            System.out.println("Имя и email не могут быть пустыми!");
-            return;
+        try {
+            User user = userService.create(name, email, age);
+            System.out.println("Создан: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
         }
-
-        User user = new User(name, email, age);
-        userDao.save(user);
-        System.out.println("Пользователь успешно создан: " + user);
     }
-
 
     private static void findUserById() {
         System.out.println("\n--- Поиск пользователя ---");
         long id = getIntInput("Введите ID: ");
 
-        Optional<User> user = userDao.findById(id);
-
-        if (user.isPresent()) {
-            System.out.println("Найден: " + user.get());
-        } else {
-            System.out.println("Пользователь с ID=" + id + " не найден.");
+        try {
+            Optional<User> user = userService.findById(id);
+            if (user.isPresent()) {
+                System.out.println("Найден: " + user.get());
+            } else {
+                System.out.println("Пользователь не найден.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
         }
     }
 
-
     private static void findAllUsers() {
         System.out.println("\n--- Все пользователи ---");
-        List<User> users = userDao.findAll();
-
+        List<User> users = userService.findAll();
         if (users.isEmpty()) {
-            System.out.println("Список пользователей пуст.");
+            System.out.println("Список пуст.");
         } else {
             users.forEach(System.out::println);
         }
     }
 
-
     private static void updateUser() {
         System.out.println("\n--- Обновление пользователя ---");
-        long id = getIntInput("Введите ID пользователя: ");
+        long id = getIntInput("Введите ID: ");
 
-        Optional<User> optionalUser = userDao.findById(id);
-
-        if (optionalUser.isEmpty()) {
-            System.out.println("Пользователь с ID=" + id + " не найден.");
-            return;
-        }
-
-        User user = optionalUser.get();
-        System.out.println("Текущие данные: " + user);
-
-        System.out.print("Новое имя (Enter чтобы оставить '"
-                + user.getName() + "'): ");
+        System.out.print("Новое имя (Enter чтобы пропустить): ");
         String name = scanner.nextLine().trim();
-        if (!name.isEmpty()) {
-            user.setName(name);
-        }
 
-        System.out.print("Новый email (Enter чтобы оставить '"
-                + user.getEmail() + "'): ");
+        System.out.print("Новый email (Enter чтобы пропустить): ");
         String email = scanner.nextLine().trim();
-        if (!email.isEmpty()) {
-            user.setEmail(email);
-        }
 
-        System.out.print("Новый возраст (0 чтобы оставить "
-                + user.getAge() + "): ");
-        int age = getIntInput("");
-        if (age > 0) {
-            user.setAge(age);
-        }
+        int age = getIntInput("Новый возраст (0 чтобы пропустить): ");
 
-        userDao.update(user);
-        System.out.println("Пользователь обновлён: " + user);
+        try {
+            User updated = userService.update(id, name, email, age);
+            System.out.println("Обновлён: " + updated);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
     }
 
     private static void deleteUser() {
         System.out.println("\n--- Удаление пользователя ---");
-        long id = getIntInput("Введите ID пользователя: ");
+        long id = getIntInput("Введите ID: ");
 
-        Optional<User> user = userDao.findById(id);
-        if (user.isEmpty()) {
-            System.out.println("Пользователь с ID=" + id + " не найден.");
-            return;
+        try {
+            userService.delete(id);
+            System.out.println("Пользователь удалён.");
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
         }
-
-        userDao.delete(id);
-        System.out.println(
-                "Пользователь с ID=" + id + " успешно удалён.");
     }
 
     private static int getIntInput(String prompt) {
